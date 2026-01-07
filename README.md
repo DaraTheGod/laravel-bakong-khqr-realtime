@@ -73,7 +73,7 @@ BAKONG_ACCOUNT=your_username@wing   # e.g., chhinchheang_dara@wing
 
 # Telegram Notification (NEW!)
 TELEGRAM_BOT_TOKEN=123456789:AAFxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TELEGRAM_ADMIN_CHAT_ID=1116759215   # Your personal or group chat ID
+TELEGRAM_ADMIN_CHAT_ID=1234567890   # Your personal or group chat ID
 ```
 
 > Register for Bakong API: https://api-bakong.nbc.gov.kh/register  
