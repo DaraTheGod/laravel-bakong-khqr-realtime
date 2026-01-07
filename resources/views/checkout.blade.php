@@ -330,17 +330,32 @@
                     <h2 style="font-size:1.125rem; font-weight:600; margin:0 0 1.5rem 0; letter-spacing:-0.3px;">
                         Order Summary
                     </h2>
-                        <div style="display:flex; align-items:center; gap:1rem; margin:{{ $index > 0 ? '1.25rem' : '0' }} 0; {{ $index > 0 ? 'padding-top:1.25rem; border-top:1px solid var(--border);' : '' }}">
-                            <img src="{{ $product['image'] }}" width="70" style="border-radius:10px; border:1px solid var(--border); display:block;">
+
+                    @forelse($cartProducts as $index => $product)
+                        @php
+                            $itemTotal = $product['price'] * $product['quantity'];
+                        @endphp
+
+                        <div style="display:flex; align-items:center; gap:1rem; 
+                                    margin:{{ $index > 0 ? '1.25rem' : '0' }} 0; 
+                                    {{ $index > 0 ? 'padding-top:1.25rem; border-top:1px solid var(--border);' : '' }}">
+                            <img src="{{ $product['image'] }}" width="70" 
+                                style="border-radius:10px; border:1px solid var(--border); display:block; object-fit:cover;">
                             <div style="flex:1; min-width:0;">
                                 <p style="font-weight:600; font-size:0.9375rem; margin:0 0 0.25rem 0; letter-spacing:-0.2px;">
-                                    {{ $product['name'] }} x{{ $product['quantity'] }}
+                                    {{ $product['name'] }} × {{ $product['quantity'] }}
                                 </p>
                             </div>
                             <p style="font-weight:600; font-size:1rem; margin:0; letter-spacing:-0.3px;">
                                 ${{ number_format($itemTotal, 2) }}
                             </p>
                         </div>
+                    @empty
+                        <p style="color:var(--text-muted); text-align:center; padding:2rem 0;">
+                            Your cart is empty
+                        </p>
+                    @endforelse
+
                     <hr style="margin:1.5rem 0;">
 
                     <div style="margin-bottom:1.25rem;">
