@@ -126,11 +126,16 @@ class KHQRController extends Controller
 
                 session()->forget('cart');
 
+                $bakongData = $result['data'];
+
                 return response()->json([
                     'paid' => true,
-                    'data' => $result['data'],
-                    'senderAccount' => $result['data']['fromAccountId'] ?? null,
-                    'md5' => $md5,
+                    'fromAccountId' => $bakongData['fromAccountId'] ?? 'Unknown',
+                    'toAccountId'   => $bakongData['toAccountId'] ?? env('BAKONG_ACCOUNT', 'chhinchheang_dara@wing'),
+                    'amount'       => $bakongData['amount'] ?? null,
+                    'currency'     => $bakongData['currency'] ?? 'USD',
+                    'hash'         => $bakongData['hash'] ?? null,
+                    'md5'          => $md5,
                 ]);
             }
 

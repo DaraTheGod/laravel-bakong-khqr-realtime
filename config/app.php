@@ -2,6 +2,8 @@
 
 return [
 
+    'bakong_account' => env('BAKONG_ACCOUNT', 'chhinchheang_dara@wing'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Name

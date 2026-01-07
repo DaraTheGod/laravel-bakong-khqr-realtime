@@ -300,25 +300,27 @@
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start;">
             <div class="card">
                 <h2 style="font-size:1.125rem; font-weight:600; margin:0 0 1.5rem 0; letter-spacing:-0.3px;">Shipping Information</h2>
+                <!-- Shipping Information Form -->
                 <form id="checkoutForm">
                     <div style="margin-bottom:1.25rem;">
                         <label>Full Name</label>
-                        <input type="text" required placeholder="John Doe">
+                        <input type="text" id="customer_name" required placeholder="John Doe">
                     </div>
                     <div style="margin-bottom:1.25rem;">
                         <label>Email</label>
-                        <input type="email" required placeholder="john@example.com">
+                        <input type="email" id="email" required placeholder="john@example.com">
                     </div>
                     <div style="margin-bottom:1.25rem;">
                         <label>Address</label>
-                        <input type="text" required placeholder="123 Main Street">
+                        <input type="text" id="address" required placeholder="123 Main Street, Phnom Penh">
                     </div>
                     <div style="margin-bottom:1.5rem;">
-                        <label>Phone</label>
-                        <input type="tel" placeholder="+855 12 345 678">
+                        <label>Phone (optional)</label>
+                        <input type="tel" id="phone" placeholder="+855 12 345 678">
                     </div>
+
                     <button type="button" class="btn-primary" style="width:100%; padding:1rem; font-size:1rem;" onclick="startKHQR()">
-                        Place Order
+                        Pay with Bakong KHQR
                     </button>
                 </form>
             </div>
@@ -377,26 +379,29 @@
 <script>
 let md5 = null;
 let poller = null;
+let processed = false; // Prevent duplicate notifications
 
 function closeModal() {
-    const modal = document.getElementById('khqrModal');
-    modal.style.display = 'none';
-
-    // Reset QR and success states for next usage
+    document.getElementById('khqrModal').style.display = 'none';
     document.getElementById('qrWrapper').classList.remove('hide');
     document.getElementById('successWrapper').classList.remove('show');
     document.getElementById('waitingDots').style.display = 'flex';
     document.getElementById('khqrStatus').innerHTML = 'Waiting for payment confirmation...';
     document.getElementById('khqrStatusBox').classList.remove('success');
-
-    // Stop polling if it's still running
-    if (poller) {
-        clearInterval(poller);
-        poller = null;
-    }
+    if (poller) clearInterval(poller);
 }
 
 async function startKHQR() {
+    const name    = document.getElementById('customer_name').value.trim();
+    const email   = document.getElementById('email').value.trim();
+    const address = document.getElementById('address').value.trim();
+    const phone   = document.getElementById('phone').value.trim();
+
+    if (!name || !email || !address) {
+        alert('Please fill in name, email, and address.');
+        return;
+    }
+
     try {
         const res = await fetch('/khqr/create', {
             method: 'POST',
@@ -408,70 +413,98 @@ async function startKHQR() {
         });
 
         const data = await res.json();
-        if (data.error) { alert('Error: '+data.error); return; }
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
 
         md5 = data.md5;
-        document.getElementById('khqrImg').src =
+        document.getElementById('khqrImg').src = 
             'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(data.qr);
-
         document.getElementById('khqrModal').style.display = 'flex';
-        poller = setInterval(checkPayment, 3000);
 
+        poller = setInterval(() => checkPayment(name, email, address, phone), 3000);
     } catch (err) {
-        alert('Network error: '+err.message);
+        alert('Network error: ' + err.message);
     }
 }
 
-async function checkPayment() {
-    if (!md5) return;
+async function checkPayment(name, email, address, phone) {
+    if (!md5 || processed) return;
 
-    const res = await fetch(`/khqr/check?md5=${md5}`);
-    const data = await res.json();
+    try {
+        const res = await fetch(`/khqr/check?md5=${md5}`);
+        const data = await res.json();
 
-    if (data.paid) {
-        clearInterval(poller);
-        poller = null;
+        if (data.paid) {
+            clearInterval(poller);
+            processed = true;
 
-        // Hide QR smoothly
-        document.getElementById('qrWrapper').classList.add('hide');
+            // 1. Send Telegram notification
+            await fetch('/notify-telegram', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    customer_name: name,
+                    email: email,
+                    address: address,
+                    phone: phone,
+                    total: {{ $subtotal }},
+                    items: @json($cartProducts),
+                    paid_from_account: data.fromAccountId || 'Unknown',  // <-- Now correctly uses sender
+                    paid_to_account: data.toAccountId || 'Unknown',          // <-- Your fixed receiver account 'bakong_account' => env('BAKONG_ACCOUNT', 'chhinchheang_dara@wing'),
+                    date: new Date().toLocaleString('en-GB', { 
+                        day: '2-digit', month: '2-digit', year: 'numeric', 
+                        hour: '2-digit', minute: '2-digit' 
+                    })
+                })
+            });
 
-        // Show success after delay
-        setTimeout(() => {
-            document.getElementById('successWrapper').classList.add('show');
-            document.getElementById('waitingDots').style.display = 'none';
-            document.getElementById('khqrStatus').innerHTML = '✓ Payment confirmed successfully!';
-            document.getElementById('khqrStatusBox').classList.add('success');
-            addParticles();
+            // 2. Clear cart
+            await fetch('/cart/clear', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+            });
 
-            // Close modal automatically after success animation
+            // 3. Show success animation
+            document.getElementById('qrWrapper').classList.add('hide');
             setTimeout(() => {
-                closeModal();
-                window.location.href = '/';
-            }, 3500);
-        }, 600);
+                document.getElementById('successWrapper').classList.add('show');
+                document.getElementById('waitingDots').style.display = 'none';
+                document.getElementById('khqrStatus').innerHTML = '✓ Payment confirmed successfully!';
+                document.getElementById('khqrStatusBox').classList.add('success');
+                addParticles();
+
+                setTimeout(() => {
+                    closeModal();
+                    window.location.href = '/'; // or '/thank-you'
+                }, 3500);
+            }, 600);
+        }
+    } catch (err) {
+        console.error('Polling error:', err);
     }
 }
 
-// Particle animation function
+// Your existing addParticles() function stays the same
 function addParticles() {
     const colors = ['#4caf50', '#8bc34a', '#ffeb3b', '#ff9800', '#03a9f4', '#e91e63'];
     const container = document.querySelector('.success-circle');
-
     for (let i = 0; i < 45; i++) {
         const p = document.createElement('div');
         p.className = 'particle';
         p.style.background = colors[Math.floor(Math.random() * colors.length)];
         p.style.left = '50%';
         p.style.top = '50%';
-
         const angle = Math.random() * Math.PI * 2;
         const velocity = 100 + Math.random() * 100;
         const x = Math.cos(angle) * velocity;
         const y = Math.sin(angle) * velocity;
-
         p.style.setProperty('--x', x + 'px');
         p.style.setProperty('--y', y + 'px');
-
         container.appendChild(p);
         setTimeout(() => p.remove(), 1400);
     }

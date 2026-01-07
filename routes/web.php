@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\KHQRController;
 use App\Http\Controllers\ShopController;
+use App\Services\TelegramNotificationService;
 
 // Shop routes
 Route::get('/', [ShopController::class, 'index'])->name('home');
@@ -21,3 +22,23 @@ Route::get('/clear-cart', function () {
 // KHQR API routes
 Route::post('/khqr/create', [KHQRController::class, 'create']);
 Route::get('/khqr/check', [KHQRController::class, 'check']);
+
+Route::post('/notify-telegram', function (TelegramNotificationService $service) {
+    $data = request()->validate([
+        'customer_name'      => 'required|string',
+        'email'              => 'required|email',
+        'address'            => 'required|string',
+        'phone'              => 'nullable|string',
+        'total'              => 'required|numeric',
+        'items'              => 'required|array',
+
+        'paid_from_account'  => 'nullable|string',
+        'paid_to_account'    => 'nullable|string',
+
+        'date'               => 'required|string',
+    ]);
+
+    $service->sendOrderNotification($data);
+
+    return response()->json(['status' => 'sent']);
+});
