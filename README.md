@@ -26,8 +26,8 @@ This is ideal for e-commerce stores in Cambodia using Bakong.
 1. Clone the repo:
 
 ```bash
-git clone https://github.com/yourusername/laravel-khqr-checkout.git
-cd laravel-khqr-checkout
+git clone https://github.com/DaraTheGod/laravel-bakong-khqr-realtime.git
+cd laravel-bakong-khqr-realtime
 ```
 
 2. Install dependencies:
@@ -74,3 +74,30 @@ BAKONG_ACCOUNT=your_username@bank
 * Add products to the cart from product pages.
 * Click **Place Order** → KHQR modal will appear.
 * Wait for realtime payment confirmation. Successful payment triggers the animation and clears the cart.
+
+---
+
+## Run the App Locally
+
+Start the Laravel development server:
+
+```bash
+php artisan serve
+```
+
+This will start the app at:
+
+```
+http://127.0.0.1:8000
+```
+
+Open your browser and go to:
+
+```
+http://127.0.0.1:8000/checkout
+```
+
+## Notes
+
+* This project demonstrates **Bakong KHQR integration in Laravel** with realtime polling — not a production-ready system.
+* Make sure your `.env` contains **valid Bakong credentials**.
