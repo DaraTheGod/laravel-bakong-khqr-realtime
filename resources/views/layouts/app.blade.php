@@ -221,7 +221,19 @@
     </main>
 
     <footer>
-        <p>© 2026 Chhinchheang Dara. All rights reserved.</p>
+        <!-- <p>© 2026 Chhinchheang Dara. All rights reserved.</p> -->
+         <p>
+            &copy; 2026 Laravel Bakong KHQR Realtime. Built by
+            <a
+              href="https://daraportfolio.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              Chhinchheang Dara
+            </a>
+            All rights reserved.
+          </p>
     </footer>
 </body>
 </html>
