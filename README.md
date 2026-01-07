@@ -101,4 +101,3 @@ http://127.0.0.1:8000/checkout
 
 * This project demonstrates **Bakong KHQR integration in Laravel** with realtime polling — not a production-ready system.
 * Make sure your `.env` contains **valid Bakong credentials**.
->>>>>>> d5d22d1cb8bbc5d8b639282428db811327ac822a
