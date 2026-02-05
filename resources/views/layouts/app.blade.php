@@ -223,7 +223,7 @@
     <footer>
         <!-- <p>© 2026 Chhinchheang Dara. All rights reserved.</p> -->
          <p>
-            &copy; 2026 Laravel Bakong KHQR Realtime. Built by
+            &copy; 2026 Laravel Bakong KHQR Realtime Payment. Built by
             <a
               href="https://daraportfolio.vercel.app/"
               target="_blank"

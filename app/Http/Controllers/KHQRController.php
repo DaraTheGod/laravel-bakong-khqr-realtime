@@ -12,7 +12,7 @@ use KHQR\Helpers\KHQRData;
 class KHQRController extends Controller
 {
     /**
-     * CREATE KHQR
+     * CREATE KHQR (still uses the official library, but we can use relay for check)
      */
     public function create(Request $request)
     {
@@ -68,7 +68,7 @@ class KHQRController extends Controller
     }
 
     /**
-     * CHECK PAYMENT (RAW BAKONG API — SAME AS NEXT.JS)
+     * CHECK PAYMENT — NOW USING BAKONG RELAY
      */
     public function check(Request $request)
     {
@@ -77,43 +77,44 @@ class KHQRController extends Controller
         ]);
 
         $md5 = $request->query('md5');
-        $token = env('BAKONG_TOKEN');
+        $token = env('BAKONG_RELAY_TOKEN');
+        $baseUrl = rtrim(env('BAKONG_RELAY_BASE_URL', 'https://api.bakongrelay.com'), '/');
 
         try {
-            Log::info('▶️ BAKONG CHECK START');
+            Log::info('▶️ BAKONG RELAY CHECK START');
             Log::info('🔐 MD5', ['md5' => $md5]);
-            Log::info('🔑 TOKEN EXISTS', ['exists' => !empty($token)]);
+            Log::info('🔑 RELAY TOKEN EXISTS', ['exists' => !empty($token)]);
 
             $response = Http::withOptions([
-                'verify' => false, // 🔴 Disable SSL check (LOCAL ONLY)
+                'verify' => false, // Only for local dev — remove in production!
             ])->withHeaders([
                 'Authorization' => "Bearer {$token}",
-                'Content-Type' => 'application/json',
+                'Content-Type'  => 'application/json',
             ])->post(
-                'https://api-bakong.nbc.gov.kh/v1/check_transaction_by_md5',
+                "{$baseUrl}/v1/check_transaction_by_md5",
                 ['md5' => $md5]
             );
 
             if (!$response->successful()) {
-                Log::error('❌ BAKONG HTTP ERROR', [
+                Log::error('❌ BAKONG RELAY HTTP ERROR', [
                     'status' => $response->status(),
-                    'body' => $response->body(),
+                    'body'   => $response->body(),
                 ]);
 
                 return response()->json([
                     'paid' => false,
-                    'error' => 'Bakong API error',
+                    'error' => 'Bakong Relay API error: ' . $response->status(),
                 ], 500);
             }
 
             $result = $response->json();
 
-            Log::info('📥 RAW BAKONG RESPONSE', $result);
+            Log::info('📥 RAW BAKONG RELAY RESPONSE', $result);
 
             $responseCode = $result['responseCode'] ?? null;
             $errorCode    = $result['errorCode'] ?? null;
 
-            Log::info('📊 BAKONG STATUS', [
+            Log::info('📊 RELAY STATUS', [
                 'responseCode' => $responseCode,
                 'errorCode'    => $errorCode,
             ]);
@@ -122,20 +123,20 @@ class KHQRController extends Controller
              * ✅ PAYMENT SUCCESS
              */
             if ($responseCode === 0 && !empty($result['data'])) {
-                Log::info('✅ PAYMENT SUCCESS', $result['data']);
+                Log::info('✅ PAYMENT SUCCESS (via Relay)', $result['data']);
 
                 session()->forget('cart');
 
                 $bakongData = $result['data'];
 
                 return response()->json([
-                    'paid' => true,
+                    'paid'          => true,
                     'fromAccountId' => $bakongData['fromAccountId'] ?? 'Unknown',
-                    'toAccountId'   => $bakongData['toAccountId'] ?? env('BAKONG_ACCOUNT', 'chhinchheang_dara@wing'),
-                    'amount'       => $bakongData['amount'] ?? null,
-                    'currency'     => $bakongData['currency'] ?? 'USD',
-                    'hash'         => $bakongData['hash'] ?? null,
-                    'md5'          => $md5,
+                    'toAccountId'   => $bakongData['toAccountId'] ?? env('BAKONG_ACCOUNT'),
+                    'amount'        => $bakongData['amount'] ?? null,
+                    'currency'      => $bakongData['currency'] ?? 'USD',
+                    'hash'          => $bakongData['hash'] ?? null,
+                    'md5'           => $md5,
                 ]);
             }
 
@@ -143,20 +144,20 @@ class KHQRController extends Controller
              * ❌ PAYMENT FAILED (cancelled / rejected)
              */
             if ($responseCode === 1 && $errorCode === 3) {
-                Log::warning('❌ PAYMENT FAILED', $result);
+                Log::warning('❌ PAYMENT FAILED (via Relay)', $result);
 
                 return response()->json([
-                    'paid' => false,
-                    'failed' => true,
+                    'paid'    => false,
+                    'failed'  => true,
                     'message' => 'Payment failed',
-                    'data' => $result,
+                    'data'    => $result,
                 ]);
             }
 
             /**
              * ⏳ PENDING
              */
-            Log::info('⏳ PAYMENT PENDING');
+            Log::info('⏳ PAYMENT PENDING (via Relay)');
 
             return response()->json([
                 'paid' => false,
@@ -165,9 +166,9 @@ class KHQRController extends Controller
             ]);
 
         } catch (\Throwable $e) {
-            Log::error('🔥 BAKONG CHECK ERROR', [
+            Log::error('🔥 BAKONG RELAY CHECK ERROR', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'trace'   => $e->getTraceAsString(),
             ]);
 
             return response()->json(['error' => 'Verification failed'], 500);
